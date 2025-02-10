@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import '../models/product.dart';
 import 'package:flutter/services.dart'; // Import for Clipboard
@@ -20,6 +22,12 @@ class ProductDetailPage extends StatefulWidget {
 class _ProductDetailPageState extends State<ProductDetailPage> {
   String? generatedUrl; // Variable to hold the generated URL
   bool isLoading = false; // Variable to track loading state
+  late StreamSubscription streamSubscription;
+
+  @override
+  void initState() {
+    super.initState();
+  }
 
   void generateLink() async {
     setState(() {
@@ -34,8 +42,9 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
       ..addCustomMetadata('product_name', widget.product.name) // Product name
       ..addCustomMetadata(
           'product_price', widget.product.price.toString()) // Product price
-      ..addCustomMetadata('product_type', 'Fruit') // Product type (example)
-      ..addCustomMetadata('key', 1)
+      ..addCustomMetadata(
+          'product_image', widget.product.imageUrl) // Product type (example)
+      ..addCustomMetadata('key', "1")
       ..addCustomMetadata('custom_string', 'abcdefg')
       ..addCustomMetadata('custom_number', 12345)
       ..addCustomMetadata('custom_bool', true)
@@ -58,6 +67,7 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
       stage: 'new',
       tags: ['tag1', 'tag2'],
     );
+    lp?.addControlParam('\$uri_redirect_mode', '1');
 
     // Generate a short URL using the Branch SDK
     BranchResponse response =
@@ -89,6 +99,12 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
         );
       });
     }
+  }
+
+  @override
+  void dispose() {
+    streamSubscription.cancel(); // Cancel the stream subscription
+    super.dispose();
   }
 
   @override

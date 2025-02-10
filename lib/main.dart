@@ -1,10 +1,11 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_branch_sdk/flutter_branch_sdk.dart';
 import 'package:logger/logger.dart';
-import 'dart:async';
-
 import 'pages/product_list_page.dart'; // Import the product list page
+import 'package:intl/intl.dart';
+import 'package:uuid/uuid.dart';
 
 Logger log = Logger(printer: PrettyPrinter());
 
@@ -34,9 +35,7 @@ class MyApp extends StatelessWidget {
 }
 
 class MyHomePage extends StatefulWidget {
-  const MyHomePage({super.key, required this.title});
-
-  final String title;
+  const MyHomePage({super.key});
 
   @override
   State<MyHomePage> createState() => _MyHomePageState();
@@ -47,20 +46,16 @@ class _MyHomePageState extends State<MyHomePage> {
   final StreamController<String> controllerUrl = StreamController<String>();
   StreamSubscription? streamSubscription;
 
-  void _incrementCounter() {
-    setState(() {
-      _counter++;
-    });
-  }
-
   @override
   void initState() {
     super.initState();
-    initDeepLinkData();
+    listenDynamicLinks(); // Start listening for dynamic links
   }
 
-  void initDeepLinkData() {
-    FlutterBranchSdk.getLatestReferringParams().then((data) {
+  void listenDynamicLinks() async {
+    streamSubscription = FlutterBranchSdk.listSession().listen((data) async {
+      log.d('listenDynamicLinks - DeepLink Data: $data');
+
       if (data.containsKey('+clicked_branch_link') &&
           data['+clicked_branch_link'] == true) {
         log.d(
@@ -124,7 +119,7 @@ class _MyHomePageState extends State<MyHomePage> {
     return Scaffold(
       appBar: AppBar(
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-        title: Text(widget.title),
+        title: const Text('Branch Assessment Test'),
       ),
       body: Center(
         child: Column(
@@ -161,7 +156,11 @@ class _MyHomePageState extends State<MyHomePage> {
         ),
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: _incrementCounter,
+        onPressed: () {
+          setState(() {
+            _counter++;
+          });
+        },
         tooltip: 'Increment',
         child: const Icon(Icons.add),
       ),
