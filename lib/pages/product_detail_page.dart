@@ -67,7 +67,6 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
       stage: 'new',
       tags: ['tag1', 'tag2'],
     );
-    lp?.addControlParam('\$uri_redirect_mode', '1');
 
     // Generate a short URL using the Branch SDK
     BranchResponse response =
