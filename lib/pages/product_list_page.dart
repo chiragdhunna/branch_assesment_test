@@ -137,6 +137,31 @@ class _ProductListPageState extends State<ProductListPage> {
       ..addControlParam('\$match_duration', 7200);
   }
 
+  void trackProductViewedEvent(Product product) {
+    // Create a BranchUniversalObject (BUO) for the product being viewed
+    BranchUniversalObject buo = BranchUniversalObject(
+      canonicalIdentifier: 'flutter/product/${product.name}',
+      title: product.name,
+      imageUrl: product.imageUrl,
+      contentDescription: 'View the product: ${product.name}',
+      contentMetadata: BranchContentMetaData()
+        ..addCustomMetadata('product_name', product.name)
+        ..addCustomMetadata('product_price', product.price.toString())
+        ..addCustomMetadata('product_image', product.imageUrl),
+    );
+
+    // Create a BranchEvent for product view
+    BranchEvent branchEvent = BranchEvent.standardEvent(
+      BranchStandardEvent.VIEW_ITEM,
+    );
+
+    // Track the content view event
+    FlutterBranchSdk.trackContent(
+      buo: [buo],
+      branchEvent: branchEvent,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -152,6 +177,7 @@ class _ProductListPageState extends State<ProductListPage> {
             title: Text(product.name),
             subtitle: Text('\$${product.price.toStringAsFixed(2)}'),
             onTap: () {
+              trackProductViewedEvent(product);
               Navigator.push(
                 context,
                 MaterialPageRoute(

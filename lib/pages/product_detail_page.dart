@@ -97,7 +97,21 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
           SnackBar(content: Text('Link copied to clipboard!')),
         );
       });
+      trackProductViewedEvent(widget.product);
     }
+  }
+
+  void trackProductViewedEvent(Product product) {
+    // Create event
+    BranchEvent event = BranchEvent.customEvent('Copied Link Event');
+
+// Define event data
+    event.eventDescription = "Product Share";
+    event.addCustomData('Product Name', widget.product.name);
+    event.addCustomData('Product Price', widget.product.price.toString());
+
+// Log event
+    FlutterBranchSdk.trackContentWithoutBuo(branchEvent: event);
   }
 
   @override
