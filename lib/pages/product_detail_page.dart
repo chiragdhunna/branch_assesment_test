@@ -114,6 +114,26 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
     FlutterBranchSdk.trackContentWithoutBuo(branchEvent: event);
   }
 
+  void trackPurchaseEvent(Product product) {
+    // Create a BranchEvent for a purchase
+    BranchEvent event = BranchEvent.standardEvent(BranchStandardEvent.PURCHASE);
+
+    // Set the necessary data for the event
+    event.revenue =
+        product.price; // Set the revenue to the price of the product
+    event.shipping = 5.0; // Example: Shipping cost
+    event.tax = 2.5; // Example: Tax applied
+    event.coupon = 'DISCOUNT2025'; // Example: A coupon code used
+    event.affiliation = 'MyStore'; // Example: The store name
+
+    // Optionally add more custom data
+    event.addCustomData('Product Name', product.name);
+    event.addCustomData('Product Price', product.price.toString());
+
+    // Log the event using Branch SDK
+    FlutterBranchSdk.trackContentWithoutBuo(branchEvent: event);
+  }
+
   @override
   void dispose() {
     streamSubscription.cancel(); // Cancel the stream subscription
@@ -159,6 +179,18 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
                 child: Text('Copy Link'),
               ),
             ],
+            // New Purchase Button
+            Spacer(), // Pushes the button to the bottom
+            Center(
+              child: ElevatedButton(
+                onPressed: () {
+                  // Call the purchase function here
+                  trackPurchaseEvent(widget.product);
+                },
+                child: Text('Purchase'),
+              ),
+            ),
+            SizedBox(height: 16), // Add some spacing at the bottom
           ],
         ),
       ),
