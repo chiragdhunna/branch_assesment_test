@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import '../models/product.dart';
 import 'package:flutter/services.dart'; // Import for Clipboard
@@ -22,13 +20,13 @@ class ProductDetailPage extends StatefulWidget {
 class _ProductDetailPageState extends State<ProductDetailPage> {
   String? generatedUrl; // Variable to hold the generated URL
   bool isLoading = false; // Variable to track loading state
-  late StreamSubscription streamSubscription;
 
   @override
   void initState() {
     super.initState();
   }
 
+  // Function to generate a Branch link
   void generateLink() async {
     setState(() {
       isLoading = true; // Set loading state to true
@@ -43,13 +41,15 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
       ..addCustomMetadata(
           'product_price', widget.product.price.toString()) // Product price
       ..addCustomMetadata(
-          'product_image', widget.product.imageUrl) // Product type (example)
-      ..addCustomMetadata('key', "1")
-      ..addCustomMetadata('custom_string', 'abcdefg')
-      ..addCustomMetadata('custom_number', 12345)
-      ..addCustomMetadata('custom_bool', true)
-      ..addCustomMetadata('custom_date_created',
-          DateFormat('yyyy-MM-dd HH:mm:ss').format(DateTime.now()));
+          'product_image', widget.product.imageUrl) // Product image URL
+      ..addCustomMetadata('key', "1") // Custom key for identification
+      ..addCustomMetadata('custom_string', 'abcdefg') // Example custom string
+      ..addCustomMetadata('custom_number', 12345) // Example custom number
+      ..addCustomMetadata('custom_bool', true) // Example custom boolean
+      ..addCustomMetadata(
+          'custom_date_created',
+          DateFormat('yyyy-MM-dd HH:mm:ss')
+              .format(DateTime.now())); // Current date
 
     // Create a BranchUniversalObject with the required parameters
     BranchUniversalObject buo = BranchUniversalObject(
@@ -75,6 +75,7 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
       isLoading = false; // Set loading state to false
     });
 
+    // Check if the link generation was successful
     if (response.success) {
       setState(() {
         generatedUrl = response.result; // Set the generated URL
@@ -90,30 +91,34 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
     }
   }
 
+  // Function to copy the generated link to the clipboard
   void copyLinkToClipboard() {
     if (generatedUrl != null) {
       Clipboard.setData(ClipboardData(text: generatedUrl!)).then((_) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Link copied to clipboard!')),
         );
+        trackProductViewedEvent(
+            widget.product); // Track the event when the link is copied
       });
-      trackProductViewedEvent(widget.product);
     }
   }
 
+  // Function to track the product viewed event
   void trackProductViewedEvent(Product product) {
     // Create event
     BranchEvent event = BranchEvent.customEvent('Copied Link Event');
 
-// Define event data
+    // Define event data
     event.eventDescription = "Product Share";
     event.addCustomData('Product Name', widget.product.name);
     event.addCustomData('Product Price', widget.product.price.toString());
 
-// Log event
+    // Log event
     FlutterBranchSdk.trackContentWithoutBuo(branchEvent: event);
   }
 
+  // Function to track purchase events
   void trackPurchaseEvent(Product product) {
     // Create a BranchEvent for a purchase
     BranchEvent event = BranchEvent.standardEvent(BranchStandardEvent.PURCHASE);
@@ -136,7 +141,6 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
 
   @override
   void dispose() {
-    streamSubscription.cancel(); // Cancel the stream subscription
     super.dispose();
   }
 
@@ -179,7 +183,6 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
                 child: Text('Copy Link'),
               ),
             ],
-            // New Purchase Button
             Spacer(), // Pushes the button to the bottom
             Center(
               child: ElevatedButton(
