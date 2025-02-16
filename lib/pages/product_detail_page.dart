@@ -1,3 +1,4 @@
+import 'package:branch_assesment_test/constants/secrets.dart';
 import 'package:flutter/material.dart';
 import '../models/product.dart';
 import 'package:flutter/services.dart'; // Import for Clipboard
@@ -5,6 +6,9 @@ import 'package:flutter_branch_sdk/flutter_branch_sdk.dart'; // Import Branch SD
 import 'package:logger/logger.dart'; // Import logger for logging
 import 'package:intl/intl.dart'; // Import for date formatting
 import 'package:uuid/uuid.dart'; // Import for generating unique identifiers
+import 'dart:convert';
+import 'package:http/http.dart' as http;
+import '../constants/api_base.dart';
 
 Logger log = Logger(printer: PrettyPrinter());
 
@@ -20,6 +24,7 @@ class ProductDetailPage extends StatefulWidget {
 class _ProductDetailPageState extends State<ProductDetailPage> {
   String? generatedUrl; // Variable to hold the generated URL
   bool isLoading = false; // Variable to track loading state
+  bool isPurchaseLoading = false; // Loader for Purchase Event
 
   @override
   void initState() {
@@ -32,67 +37,85 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
       isLoading = true; // Set loading state to true
     });
 
-    // Create a unique canonical identifier each time the link is generated
-    final canonicalIdentifier = const Uuid().v4();
+    try {
+      // Create a unique canonical identifier each time the link is generated
+      final canonicalIdentifier = const Uuid().v4();
 
-    // Create metadata for the BranchUniversalObject
-    var metadata = BranchContentMetaData()
-      ..addCustomMetadata('product_name', widget.product.name) // Product name
-      ..addCustomMetadata(
-          'product_price', widget.product.price.toString()) // Product price
-      ..addCustomMetadata(
-          'product_image', widget.product.imageUrl) // Product image URL
-      ..addCustomMetadata('key', "1") // Custom key for identification
-      ..addCustomMetadata('custom_string', 'abcdefg') // Example custom string
-      ..addCustomMetadata('custom_number', 12345) // Example custom number
-      ..addCustomMetadata('custom_bool', true) // Example custom boolean
-      ..addCustomMetadata(
-          'custom_date_created',
-          DateFormat('yyyy-MM-dd HH:mm:ss')
-              .format(DateTime.now())); // Current date
+      // Create metadata for the BranchUniversalObject
+      var metadata = BranchContentMetaData()
+        ..addCustomMetadata('product_name', widget.product.name) // Product name
+        ..addCustomMetadata(
+            'product_price', widget.product.price.toString()) // Product price
+        ..addCustomMetadata(
+            'product_image', widget.product.imageUrl) // Product image URL
+        ..addCustomMetadata('key', "1") // Custom key for identification
+        ..addCustomMetadata('custom_string', 'abcdefg') // Example custom string
+        ..addCustomMetadata('custom_number', 12345) // Example custom number
+        ..addCustomMetadata('custom_bool', true) // Example custom boolean
+        ..addCustomMetadata(
+            'custom_date_created',
+            DateFormat('yyyy-MM-dd HH:mm:ss')
+                .format(DateTime.now())); // Current date
 
-    // Create a BranchUniversalObject with the required parameters
-    BranchUniversalObject buo = BranchUniversalObject(
-      canonicalIdentifier: 'flutter/branch_$canonicalIdentifier',
-      title: widget.product.name,
-      imageUrl: widget.product.imageUrl,
-      contentDescription: 'Check out this product: ${widget.product.name}',
-      contentMetadata: metadata,
-    );
+      // Create a BranchUniversalObject with the required parameters
+      BranchUniversalObject buo = BranchUniversalObject(
+        canonicalIdentifier: 'flutter/branch_$canonicalIdentifier',
+        title: widget.product.name,
+        imageUrl: widget.product.imageUrl,
+        contentDescription: 'Check out this product: ${widget.product.name}',
+        contentMetadata: metadata,
+      );
 
-    // Create BranchLinkProperties with the required parameters
-    BranchLinkProperties lp = BranchLinkProperties(
-      channel: 'app',
-      feature: 'sharing',
-      stage: 'new',
-      tags: ['tag1', 'tag2'],
-    );
+      // Create BranchLinkProperties with the required parameters
+      BranchLinkProperties lp = BranchLinkProperties(
+        channel: 'app',
+        feature: 'sharing',
+        stage: 'new',
+        tags: ['tag1', 'tag2'],
+      );
 
-    // Generate a short URL using the Branch SDK
-    BranchResponse response =
-        await FlutterBranchSdk.getShortUrl(buo: buo, linkProperties: lp);
-    setState(() {
-      isLoading = false; // Set loading state to false
-    });
-
-    // Check if the link generation was successful
-    if (response.success) {
-      setState(() {
-        generatedUrl = response.result; // Set the generated URL
+      // Generate a short URL using the Branch SDK
+      BranchResponse response =
+          await FlutterBranchSdk.getShortUrl(buo: buo, linkProperties: lp)
+              .timeout(Duration(seconds: 10), onTimeout: () {
+        throw Exception("Branch link generation timed out!");
       });
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Link generated for ${widget.product.name}')),
-      );
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-            content: Text('Error generating link: ${response.errorMessage}')),
-      );
+      setState(() {
+        isLoading = false; // Set loading state to false
+      });
+
+      // Check if the link generation was successful
+      if (response.success) {
+        setState(() {
+          generatedUrl = response.result; // Set the generated URL
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Link generated for ${widget.product.name}')),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+              content: Text('Error generating link: ${response.errorMessage}')),
+        );
+      }
+    } catch (e) {
+      log.e('Error generating link : $e');
+    } finally {
+      setState(() {
+        isLoading = false; // Set loading state to false
+      });
     }
   }
 
   // Function to copy the generated link to the clipboard
   void copyLinkToClipboard() {
+    if (generatedUrl == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Please generate a link first!')),
+      );
+      return;
+    }
+
     if (generatedUrl != null) {
       Clipboard.setData(ClipboardData(text: generatedUrl!)).then((_) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -118,25 +141,71 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
     FlutterBranchSdk.trackContentWithoutBuo(branchEvent: event);
   }
 
-  // Function to track purchase events
-  void trackPurchaseEvent(Product product) {
-    // Create a BranchEvent for a purchase
-    BranchEvent event = BranchEvent.standardEvent(BranchStandardEvent.PURCHASE);
+  Future<void> trackPurchaseEvent(Product product) async {
+    setState(() {
+      isPurchaseLoading = true; // Start loading
+    });
 
-    // Set the necessary data for the event
-    event.revenue =
-        product.price; // Set the revenue to the price of the product
-    event.shipping = 5.0; // Example: Shipping cost
-    event.tax = 2.5; // Example: Tax applied
-    event.coupon = 'DISCOUNT2025'; // Example: A coupon code used
-    event.affiliation = 'MyStore'; // Example: The store name
+    // Branch’s v2 event endpoint for standard events (PURCHASE, ADD_TO_CART, etc.).
 
-    // Optionally add more custom data
-    event.addCustomData('Product Name', product.name);
-    event.addCustomData('Product Price', product.price.toString());
+    // Be sure to replace with your own live/test Branch key
+    // const String branchKey = 'key_live_eCk7PGw7TOwRA4Y18pSO2odlrFcxPeQO';
 
-    // Log the event using Branch SDK
-    FlutterBranchSdk.trackContentWithoutBuo(branchEvent: event);
+    final Map<String, dynamic> requestBody = {
+      'branch_key': branchKey,
+      'name': 'PURCHASE',
+      'user_data': {
+        'developer_identity': 'user123',
+        'os': 'Android',
+        'environment': 'FULL_APP',
+        'aaid': '4ffff466-67b4-4131-b48e-4cdc5ad0369a',
+        'android_id': '5d25f62595d6d638',
+      },
+      'event_data': {
+        'transaction_id': 'tx_${DateTime.now().millisecondsSinceEpoch}',
+        'currency': 'USD',
+        'revenue': product.price,
+        'shipping': 5.0,
+        'tax': 2.5,
+        'coupon': 'DISCOUNT2025',
+        'affiliation': 'MyStore',
+      },
+      'custom_data': {
+        'Product Name': product.name,
+        'Product Price': product.price.toString(),
+      }
+    };
+
+    try {
+      final response = await http
+          .post(
+        Uri.parse(endPoint),
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
+        body: jsonEncode(requestBody),
+      )
+          .timeout(Duration(seconds: 10), onTimeout: () {
+        throw Exception("Branch API request timed out!");
+      });
+
+      log.d('🔍 SENT DATA: ${jsonEncode(requestBody)}');
+
+      if (response.statusCode == 200) {
+        log.d('✅ PURCHASE event logged successfully!');
+        log.d('🔍 API RESPONSE: ${response.body}');
+      } else {
+        log.e('⛔ Failed to log PURCHASE event. Status: ${response.statusCode}');
+        log.e('🔍 API RESPONSE: ${response.body}');
+      }
+    } catch (e) {
+      log.e('⛔ Error logging PURCHASE event: $e');
+    } finally {
+      setState(() {
+        isPurchaseLoading = false; // Stop loading
+      });
+    }
   }
 
   @override
@@ -184,16 +253,17 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
               ),
             ],
             Spacer(), // Pushes the button to the bottom
+            // Purchase Button with Loader
             Center(
               child: ElevatedButton(
-                onPressed: () {
-                  // Call the purchase function here
-                  trackPurchaseEvent(widget.product);
-                },
-                child: Text('Purchase'),
+                onPressed: isPurchaseLoading
+                    ? null
+                    : () => trackPurchaseEvent(widget.product),
+                child: isPurchaseLoading
+                    ? CircularProgressIndicator(color: Colors.white)
+                    : Text('Purchase'),
               ),
             ),
-            SizedBox(height: 16), // Add some spacing at the bottom
           ],
         ),
       ),

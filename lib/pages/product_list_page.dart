@@ -42,6 +42,12 @@ class _ProductListPageState extends State<ProductListPage> {
     initDeepLinkData(); // Initialize deep link data
   }
 
+  Future<void> preloadImages(BuildContext context) async {
+    for (var product in products) {
+      await precacheImage(AssetImage(product.imageUrl), context);
+    }
+  }
+
   void listenDynamicLinks() async {
     FlutterBranchSdk.listSession().listen((data) async {
       log.d('listenDynamicLinks - DeepLink Data: $data');
@@ -168,21 +174,31 @@ class _ProductListPageState extends State<ProductListPage> {
       appBar: AppBar(
         title: Text('Product List'),
       ),
-      body: ListView.builder(
-        itemCount: products.length,
-        itemBuilder: (context, index) {
-          final product = products[index];
-          return ListTile(
-            leading: Image.asset(product.imageUrl),
-            title: Text(product.name),
-            subtitle: Text('\$${product.price.toStringAsFixed(2)}'),
-            onTap: () {
-              trackProductViewedEvent(product);
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => ProductDetailPage(product: product),
-                ),
+      body: FutureBuilder(
+        future: preloadImages(context),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return Center(child: CircularProgressIndicator());
+          } else if (snapshot.hasError) {
+            return Center(child: Text('Error loading images'));
+          }
+          return ListView.builder(
+            itemCount: products.length,
+            itemBuilder: (context, index) {
+              final product = products[index];
+              return ListTile(
+                leading: Image.asset(product.imageUrl),
+                title: Text(product.name),
+                subtitle: Text('\$${product.price.toStringAsFixed(2)}'),
+                onTap: () {
+                  trackProductViewedEvent(product);
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => ProductDetailPage(product: product),
+                    ),
+                  );
+                },
               );
             },
           );
